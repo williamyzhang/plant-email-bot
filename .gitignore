@@ -1,0 +1,9 @@
+*.log
+*.json
+*.docx
+*.pickle
+*.sh
+*.JPG
+__pycache__/
+defunct/
+
