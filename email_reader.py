@@ -90,3 +90,4 @@ def threads_head(max_displayed=10, more=False):  # (for debugging purposes)
 
         n += 1
 
+#threads_head(20, True)

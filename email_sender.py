@@ -1,13 +1,15 @@
 # modified from https://www.thepythoncode.com/article/use-gmail-api-in-python
 
 import os
-import pickle
+#import pickle
 import base64
 from apiclient import errors
 # Gmail API utils
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+import google.auth.exceptions
 # for encoding/decoding messages in base64
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 # for dealing with attachement MIME types
@@ -19,9 +21,11 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from mimetypes import guess_type as guess_mime_type
 
+#todo: make class so that importing this module won't automatically run oauth
+
 # Request all access (permission to read/send/receive emails, manage the inbox, and more)
 # https://developers.google.com/gmail/api/auth/scopes
-SCOPES = ['https://mail.google.com/']
+SCOPES = ['https://mail.google.com/'] #TODO: reduce to a less invasive scope
 import yaml
 
 with open("config.yaml", 'r') as stream:
@@ -32,23 +36,32 @@ with open("config.yaml", 'r') as stream:
         print('Issue with config.yaml')
         raise
 
-def gmail_authenticate():
+def gmail_authenticate(): #TODO: move this to its own file, so other modules only have to import quickstart and not the entire email_sender
     creds = None
     # the file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
-            creds = pickle.load(token)
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        #with open("token.json", "rb") as token:
+            #creds = pickle.load(token) i don't think pickling is necessary here
+
     # if there are no (valid) credentials availablle, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except google.auth.exceptions.RefreshError:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'client_secret.json', SCOPES)
+                creds = flow.run_local_server(port=0)
         else:
             flow = InstalledAppFlow.from_client_secrets_file('client_secret.json', SCOPES)
             creds = flow.run_local_server(port=0)
         # save the credentials for the next run
-        with open("token.pickle", "wb") as token:
-            pickle.dump(creds, token)
+        #with open("token.json", "wb") as token:
+            #pickle.dump(creds, token)
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
     return build('gmail', 'v1', credentials=creds)
 
 
@@ -112,10 +125,15 @@ def send_message(service, user_id, message):
 
 
 def send_message_easy(service, destination, obj, body, attachments=[]):
-    return service.users().messages().send(
-        userId="me",
-        body=build_message(destination, obj, body, attachments)
-    ).execute()
+    try:
+        return service.users().messages().send(
+            userId="me",
+            body=build_message(destination, obj, body, attachments)
+            ).execute()
+    except:
+        print('Something went wrong when sending the email')
+        raise
+        return None
 
 
 def reply_message(service, threadId, destination, message_id,

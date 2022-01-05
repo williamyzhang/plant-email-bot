@@ -4,6 +4,11 @@
 *.pickle
 *.sh
 *.JPG
+*.rtf
 __pycache__/
 defunct/
-
+.idea/
+.DS_Store
+config.yaml
+request_counter.yaml
+temp_email_info.yaml
